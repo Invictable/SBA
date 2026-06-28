@@ -77,7 +77,7 @@ public class PartyInviteCommand {
                                 .getInstance()
                                 .getOrCreate(player)
                                 .ifPresent(party -> {
-                                        if (party.getInvitedPlayers().size() > 5) {
+                                        if (party.getInvitedPlayers().size() > 25) {
                                                 LanguageService
                                                                 .getInstance()
                                                                 .get(MessageKeys.PARTY_MESSAGE_MAX_INVITE_SIZE_REACHED)
