@@ -1,0 +1,169 @@
+plugins {
+    id 'org.screamingsandals.plugin-slib' version "${SCREAMING_PLUGIN_BUILDER_VERSION}" apply false
+    id 'com.github.gmazzo.buildconfig' version "${BUILDCONFIG_VERSION}" apply false
+    id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
+    id 'org.ajoberstar.grgit' version '5.0.0' apply false
+    id 'io.freefair.lombok' version '8.4' apply false
+}
+
+defaultTasks 'clean', 'screamCompile'
+
+ext {
+    try{
+        // Open the Git repository in the current directory.
+        revision = org.ajoberstar.grgit.Grgit.open(dir:file('.').getAbsolutePath()).head().abbreviatedId
+    } catch(Exception e) {
+        revision = "NON_GIT"
+        println("Exception: ${e}")
+    }
+    // Alternative is using abbreviatedId of head() method.
+    // revision = git.head().abbreviatedId
+}
+tasks.register("describe") {
+  doFirst {
+    try{
+        println org.ajoberstar.grgit.Grgit.open(dir:file('.').getAbsolutePath()).head().abbreviatedId
+    } catch(Exception e) {
+        revision = "NON_GIT"
+        println("Running outside of git")
+    }
+  }
+}
+
+allprojects {
+    group = 'io.pronze'
+    version = SBA_VERSION
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.freefair.lombok'
+    apply plugin: 'com.github.johnrengelman.shadow'
+    apply plugin: 'maven-publish'
+
+    publishing.publications.create("maven", MavenPublication) {
+        artifact(tasks.shadowJar)
+
+        artifacts.every {
+            it.classifier = ""
+        }
+
+        pom.withXml {
+            def dependenciesNode = asNode().appendNode("dependencies")
+            project.configurations.compileOnly.dependencies.each {
+                if (!(it instanceof SelfResolvingDependency)) {
+                    def dependencyNode = dependenciesNode.appendNode('dependency')
+                    dependencyNode.appendNode('groupId', it.group)
+                    dependencyNode.appendNode('artifactId', it.name)
+                    dependencyNode.appendNode('version', it.version)
+                    dependencyNode.appendNode('scope', 'provided')
+                }
+            }
+        }
+    }
+
+    tasks.register('screamCompile') {
+        if (System.getenv("OPTIMIZE_FOR_CI_CD") != "1") {
+            dependsOn("shadowJar", "publishToMavenLocal")
+        } else {
+            dependsOn('shadowJar') // publications are not used in this repo
+        }
+    }
+
+    configurations.all {
+        // Check for updates every build
+        resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+    }
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven {
+            url = uri('https://repo.dmulloy2.net/nexus/repository/public/')
+        }
+        maven {
+            url = uri('https://repo.screamingsandals.org/releases')
+        }
+        maven {
+            url = uri('https://repo.extendedclip.com/content/repositories/placeholderapi/')
+        }
+        maven {
+            url = uri('https://repo.papermc.io/repository/maven-public/')
+        }
+        maven {
+            url = uri('https://repo.maven.apache.org/maven2/')
+        }
+        maven {
+            url = uri('https://repo.screamingsandals.org/snapshots')
+        }
+        maven{ url= uri("https://repo.citizensnpcs.co/")}
+        maven{ url= uri("https://moyskleytech.com/debian/m2/")}
+          maven {
+            url=uri("https://repo.alessiodp.com/releases/")
+        }
+         maven {
+            url=uri("https://repo.alessiodp.com/snapshots/")
+        }
+        maven { url 'https://libraries.minecraft.net/' }
+    }
+
+    dependencies {
+        compileOnly 'org.jetbrains:annotations:23.0.0'
+        compileOnly 'com.destroystokyo.paper:paper-api:' + PAPER_LEGACY_VERSION + '-R0.1-SNAPSHOT'
+        compileOnly 'org.screamingsandals.bedwars:BedWars:' + BEDWARS_VERSION
+        compileOnly 'org.screamingsandals.bedwars:BedWars-API:' + BEDWARS_VERSION
+    }
+
+    shadowJar {
+        minimize()
+        relocate 'org.spongepowered.configurate', 'sba.c'
+        relocate 'org.yaml.snakeyaml', 'sba.s'
+        relocate 'net.kyori.adventure.text', 'sba.k.a.t'
+        relocate 'net.kyori.adventure.platform', 'sba.k.a.p'
+        relocate 'net.kyori.adventure', 'sba.k.a'
+        relocate 'net.kyori.examination', 'sba.k.e'
+        relocate 'cloud.commandframework', 'sba.cl'
+        relocate 'me.lucko.commodore', 'sba.co'
+        relocate 'org.screamingsandals.lib.attribute', 'sba.sl.a'
+        relocate 'org.screamingsandals.lib.block', 'sba.sl.b'
+        relocate 'org.screamingsandals.lib.bukkit', 'sba.sl.bk'
+        relocate 'org.screamingsandals.lib.command', 'sba.sl.c'
+        relocate 'org.screamingsandals.lib.configurate', 'sba.sl.co'
+        relocate 'org.screamingsandals.lib.container', 'sba.sl.cn'
+        relocate 'org.screamingsandals.lib.entity', 'sba.sl.e'
+        relocate 'org.screamingsandals.lib.event', 'sba.sl.ev'
+        relocate 'org.screamingsandals.lib.firework', 'sba.sl.f'
+        relocate 'org.screamingsandals.lib.healthindicator', 'sba.sl.hi'
+        relocate 'org.screamingsandals.lib.hologram', 'sba.sl.h'
+        relocate 'org.screamingsandals.lib.item', 'sba.sl.i'
+        relocate 'org.screamingsandals.lib.lang', 'sba.sl.l'
+        relocate 'org.screamingsandals.lib.metadata', 'sba.sl.m'
+        relocate 'org.screamingsandals.lib.nms', 'sba.sl.n'
+        relocate 'org.screamingsandals.lib.nps', 'sba.sl.np'
+        relocate 'org.screamingsandals.lib.packet', 'sba.sl.p'
+        relocate 'org.screamingsandals.lib.particle', 'sba.sl.pa'
+        relocate 'org.screamingsandals.lib.placeholders', 'sba.sl.pl'
+        relocate 'org.screamingsandals.lib.player', 'sba.sl.pa'
+        relocate 'org.screamingsandals.lib.plugin', 'sba.sl.pu'
+        relocate 'org.screamingsandals.lib.sender', 'sba.sl.s'
+        relocate 'org.screamingsandals.lib.sidebar', 'sba.sl.si'
+        relocate 'org.screamingsandals.lib.slot', 'sba.sl.sl'
+        relocate 'org.screamingsandals.lib.tasker', 'sba.sl.t'
+        relocate 'org.screamingsandals.lib.utils', 'sba.sl.u'
+        relocate 'org.screamingsandals.lib.vanilla', 'sba.sl.v'
+        relocate 'org.screamingsandals.lib.visuals', 'sba.sl.vi'
+        relocate 'org.screamingsandals.lib.world', 'sba.sl.w'
+        relocate 'org.screamingsandals.lib', 'sba.sl'
+        relocate 'org.screamingsandals.simpleinventories', 'sba.si'
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+    java {
+        sourceCompatibility = JavaVersion.VERSION_11
+    }
+}
+
+
+
